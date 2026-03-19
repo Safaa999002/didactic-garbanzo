@@ -26,15 +26,7 @@ steps:
   - name: Keep session alive
     run: |
       echo "Session started. Check AnyDesk window for ID"
-      Start-Sleep -Seconds 21600              exit 1
-          )
-
-          :START_ANYDESK
-          echo [INFO] Starting AnyDesk service in background...
-          start "" "%adPath%" --start
-          powershell -Command "Start-Sleep -Seconds 10"
-
-          echo [INFO] Attempting to fetch AnyDesk ID...
+      Start-Sleep -Seconds 21600          echo [INFO] Attempting to fetch AnyDesk ID...
           for /f "delims=" %%i in ('"%adPath%" --get-id') do (
               set "ID=%%i"
           )
