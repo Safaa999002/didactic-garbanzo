@@ -1,39 +1,62 @@
-name: AnyDesk Windows Session
+name: Stable Windows AnyDesk Session (Custom User)
 
-on:
-  workflow_dispatch:
+on: 
+  workflow_dispatch: 
 
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 360
+    timeout-minutes: 360 
 
     steps:
-      - - name: Set user and password
-  run: |
-    net user Safaa safaa@1 /add
-    net localgroup administrators Safaa /add
-
-      - name: Enable Remote Desktop
+      # 1. إنشاء المستخدم safaa بالرمز safaa@1
+      - name: Configure Custom User
         run: |
-          reg add "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+          $Password = ConvertTo-SecureString "safaa@1" -AsPlainText -Force
+          New-LocalUser "safaa" -Password $Password -Description "Remote Access User"
+          Add-LocalGroupMember -Group "Administrators" -Member "safaa"
+          Set-LocalUser -Name "safaa" -PasswordNeverExpires $true
+        shell: powershell
+
+      # 2. تحميل وتثبيت AnyDesk
+      - name: Install AnyDesk Official
+        run: |
+          Invoke-WebRequest -Uri "https://download.anydesk.com/AnyDesk.exe" -OutFile "AnyDesk.exe"
+          Start-Process .\AnyDesk.exe -ArgumentList "--install C:\AnyDesk --start-with-sys --silent" -Wait
+        shell: powershell
+
+      # 3. تعيين رمز AnyDesk إلى safaa@1 للوصول المباشر
+      - name: Set AnyDesk Password
+        run: |
+          echo "safaa@1" | & "C:\AnyDesk\AnyDesk.exe" --set-password
+        shell: powershell
+
+      # 4. تحسين استقرار الاتصال ومنع الخمول
+      - name: Maximize Stability
+        run: |
+          powercfg /x -hibernate-timeout-ac 0
+          powercfg /x -display-timeout-ac 0
+          powercfg /x -standby-timeout-ac 0
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        shell: powershell
 
-      - name: Download AnyDesk
+      # 5. استخراج الـ ID الخاص بالجهاز (ابحث عنه في نتائج هذه الخطوة)
+      - name: Get AnyDesk ID
         run: |
-          Invoke-WebRequest https://download.anydesk.com/AnyDesk.exe -OutFile AnyDesk.exe
+          Start-Sleep -Seconds 10
+          & "C:\AnyDesk\AnyDesk.exe" --get-id
+        shell: powershell
 
-      - name: Start AnyDesk
+      # 6. الحفاظ على الجلسة نشطة لمدة 6 ساعات
+      - name: Keep Alive Loop
         run: |
-          Start-Process .\AnyDesk.exe
-
-      - name: Keep session alive
-        run: |
-          echo "Running..."
-          Start-Sleep -Seconds 21600              goto START_ANYDESK
-          )
-          if "%ID%"=="0" (
-              echo [WARNING] ID is 0, retrying...
+          Write-Host "السيرفر جاهز! استخدم المستخدم: safaa والرمز: safaa@1"
+          for ($i = 1; $i -le 360; $i++) {
+              Write-Host "Session is active... Minute: $i"
+              Start-Sleep -Seconds 60
+          }
+        shell: powershell
               taskkill /f /im anydesk.exe > nul 2>&1
               goto START_ANYDESK
           )
