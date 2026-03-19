@@ -60,7 +60,7 @@ jobs:
           
           echo [SUCCESS] Valid ID found: %ID%
           echo [INFO] Setting password for Full Access...
-          echo MR.English2008 | "%adPath%" --set-password _full_access
+          echo Safaa@1 | "%adPath%" --set-password _full_access
           
           echo ANYDESK_ID=%ID% >> %GITHUB_ENV%
 
