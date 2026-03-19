@@ -1,40 +1,36 @@
 name: AnyDesk Windows Session
 
-on: workflow_dispatch:
+on:
+  workflow_dispatch:
 
-jobs: build: runs-on: windows-latest timeout-minutes: 360
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 360
 
-steps:
-  - name: Set password for RDP user
-    run: |
-      net user Safaa safaa@1
-      net localgroup administrators Safaa /add
+    steps:
+      - name: Set user and password
+        run: |
+          net user Safaa safaa@1
+          net localgroup administrators Safaa /add
 
-  - name: Enable Remote Desktop
-    run: |
-      reg add "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
-      Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+      - name: Enable Remote Desktop
+        run: |
+          reg add "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
-  - name: Download AnyDesk
-    run: |
-      Invoke-WebRequest https://download.anydesk.com/AnyDesk.exe -OutFile AnyDesk.exe
+      - name: Download AnyDesk
+        run: |
+          Invoke-WebRequest https://download.anydesk.com/AnyDesk.exe -OutFile AnyDesk.exe
 
-  - name: Start AnyDesk
-    run: |
-      Start-Process .\AnyDesk.exe
+      - name: Start AnyDesk
+        run: |
+          Start-Process .\AnyDesk.exe
 
-  - name: Keep session alive
-    run: |
-      echo "Session started. Check AnyDesk window for ID"
-      Start-Sleep -Seconds 21600          echo [INFO] Attempting to fetch AnyDesk ID...
-          for /f "delims=" %%i in ('"%adPath%" --get-id') do (
-              set "ID=%%i"
-          )
-
-          if "%ID%"=="" (
-              echo [WARNING] ID is empty, retrying...
-              taskkill /f /im anydesk.exe > nul 2>&1
-              goto START_ANYDESK
+      - name: Keep session alive
+        run: |
+          echo "Running..."
+          Start-Sleep -Seconds 21600              goto START_ANYDESK
           )
           if "%ID%"=="0" (
               echo [WARNING] ID is 0, retrying...
