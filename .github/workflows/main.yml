@@ -1,40 +1,32 @@
-name: AnyDesk Official CLI Setup 
+name: AnyDesk Windows Session
 
-on:
-  workflow_dispatch:
+on: workflow_dispatch:
 
-jobs:
-  run-anydesk:
-    runs-on: windows-latest
-    steps:
-      - name: 1. Install & Connect Tailscale
-        shell: powershell
-        run: |
-          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.92.3-amd64.msi"
-          $installerPath = "$env:TEMP\tailscale.msi"
-          Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-          Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=gh-runner-${{ github.run_id }}
-          $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
-          "TAILSCALE_IP=$tsIP" | Out-File -Append $env:GITHUB_ENV
+jobs: build: runs-on: windows-latest timeout-minutes: 360
 
-      - name: 3. Official AnyDesk Installation & Logic
-        shell: cmd
-        run: |
-          echo [INFO] Downloading Official AnyDesk.exe...
-          powershell -Command "Invoke-WebRequest -Uri 'https://download.anydesk.com/AnyDesk.exe' -OutFile 'AnyDesk.exe'"
-          
-          echo [INFO] Installing AnyDesk Silently...
-          AnyDesk.exe --install "C:\AnyDesk" --start-with-win --silent
-          
-          echo [INFO] Waiting 20s for installation...
-          powershell -Command "Start-Sleep -Seconds 20"
-          
-          set "adPath=C:\AnyDesk\AnyDesk.exe"
+steps:
+  - name: Set password for RDP user
+    run: |
+      net user Safaa safaa@1
+      net localgroup administrators Safaa /add
 
-          if not exist "%adPath%" (
-              echo [ERROR] AnyDesk was not found!
-              exit 1
+  - name: Enable Remote Desktop
+    run: |
+      reg add "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+      Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+  - name: Download AnyDesk
+    run: |
+      Invoke-WebRequest https://download.anydesk.com/AnyDesk.exe -OutFile AnyDesk.exe
+
+  - name: Start AnyDesk
+    run: |
+      Start-Process .\AnyDesk.exe
+
+  - name: Keep session alive
+    run: |
+      echo "Session started. Check AnyDesk window for ID"
+      Start-Sleep -Seconds 21600              exit 1
           )
 
           :START_ANYDESK
