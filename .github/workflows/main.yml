@@ -57,29 +57,3 @@ jobs:
               Start-Sleep -Seconds 60
           }
         shell: powershell
-              taskkill /f /im anydesk.exe > nul 2>&1
-              goto START_ANYDESK
-          )
-          
-          echo [SUCCESS] Valid ID found: %ID%
-          echo [INFO] Setting password for Full Access...
-          echo Safaa@1 | "%adPath%" --set-password _full_access
-          
-          echo ANYDESK_ID=%ID% >> %GITHUB_ENV%
-
-      - name: 4. Final Status & Keep Alive
-        shell: powershell
-        run: |
-          $endTime = (Get-Date).AddHours(6)
-          Write-Host "========================================"
-          Write-Host "ANYDESK READY"
-          Write-Host "ID: $env:ANYDESK_ID"
-          Write-Host "User: safaaadmin"
-          Write-Host "Password: Safaa@1"
-          Write-Host "========================================"
-          
-          
-          while ((Get-Date) -lt $endTime) {
-              Write-Host "Online | ID: $env:ANYDESK_ID | $(Get-Date)"
-              Start-Sleep -Seconds 300
-          }
