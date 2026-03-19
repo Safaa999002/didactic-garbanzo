@@ -9,10 +9,10 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Set user and password
-        run: |
-          net user Safaa safaa@1
-          net localgroup administrators Safaa /add
+      - - name: Set user and password
+  run: |
+    net user Safaa safaa@1 /add
+    net localgroup administrators Safaa /add
 
       - name: Enable Remote Desktop
         run: |
