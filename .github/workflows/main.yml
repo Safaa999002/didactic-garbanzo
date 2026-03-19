@@ -1,59 +1,82 @@
-name: Stable Windows AnyDesk Session (Custom User)
+name: AnyDesk Official CLI Setup 
 
-on: 
-  workflow_dispatch: 
+on:
+  workflow_dispatch:
 
 jobs:
-  build:
+  run-anydesk:
     runs-on: windows-latest
-    timeout-minutes: 360 
-
     steps:
-      # 1. إنشاء المستخدم safaa بالرمز safaa@1
-      - name: Configure Custom User
-        run: |
-          $Password = ConvertTo-SecureString "safaa@1" -AsPlainText -Force
-          New-LocalUser "safaa" -Password $Password -Description "Remote Access User"
-          Add-LocalGroupMember -Group "Administrators" -Member "safaa"
-          Set-LocalUser -Name "safaa" -PasswordNeverExpires $true
+      - name: 1. Install & Connect Tailscale
         shell: powershell
-
-      # 2. تحميل وتثبيت AnyDesk
-      - name: Install AnyDesk Official
         run: |
-          Invoke-WebRequest -Uri "https://download.anydesk.com/AnyDesk.exe" -OutFile "AnyDesk.exe"
-          Start-Process .\AnyDesk.exe -ArgumentList "--install C:\AnyDesk --start-with-sys --silent" -Wait
+          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.92.3-amd64.msi"
+          $installerPath = "$env:TEMP\tailscale.msi"
+          Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
+          Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTHKEY }} --hostname=gh-runner-${{ github.run_id }}
+          $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
+          "TAILSCALE_IP=$tsIP" | Out-File -Append $env:GITHUB_ENV
+
+      - name: 3. Official AnyDesk Installation & Logic
+        shell: cmd
+        run: |
+          echo [INFO] Downloading Official AnyDesk.exe...
+          powershell -Command "Invoke-WebRequest -Uri 'https://download.anydesk.com/AnyDesk.exe' -OutFile 'AnyDesk.exe'"
+          
+          echo [INFO] Installing AnyDesk Silently...
+          AnyDesk.exe --install "C:\AnyDesk" --start-with-win --silent
+          
+          echo [INFO] Waiting 20s for installation...
+          powershell -Command "Start-Sleep -Seconds 20"
+          
+          set "adPath=C:\AnyDesk\AnyDesk.exe"
+
+          if not exist "%adPath%" (
+              echo [ERROR] AnyDesk was not found!
+              exit 1
+          )
+
+          :START_ANYDESK
+          echo [INFO] Starting AnyDesk service in background...
+          start "" "%adPath%" --start
+          powershell -Command "Start-Sleep -Seconds 10"
+
+          echo [INFO] Attempting to fetch AnyDesk ID...
+          for /f "delims=" %%i in ('"%adPath%" --get-id') do (
+              set "ID=%%i"
+          )
+
+          if "%ID%"=="" (
+              echo [WARNING] ID is empty, retrying...
+              taskkill /f /im anydesk.exe > nul 2>&1
+              goto START_ANYDESK
+          )
+          if "%ID%"=="0" (
+              echo [WARNING] ID is 0, retrying...
+              taskkill /f /im anydesk.exe > nul 2>&1
+              goto START_ANYDESK
+          )
+          
+          echo [SUCCESS] Valid ID found: %ID%
+          echo [INFO] Setting password for Full Access...
+          echo safaa@1 | "%adPath%" --set-password _full_access
+          
+          echo ANYDESK_ID=%ID% >> %GITHUB_ENV%
+
+      - name: 4. Final Status & Keep Alive
         shell: powershell
-
-      # 3. تعيين رمز AnyDesk إلى safaa@1 للوصول المباشر
-      - name: Set AnyDesk Password
         run: |
-          echo "safaa@1" | & "C:\AnyDesk\AnyDesk.exe" --set-password
-        shell: powershell
-
-      # 4. تحسين استقرار الاتصال ومنع الخمول
-      - name: Maximize Stability
-        run: |
-          powercfg /x -hibernate-timeout-ac 0
-          powercfg /x -display-timeout-ac 0
-          powercfg /x -standby-timeout-ac 0
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        shell: powershell
-
-      # 5. استخراج الـ ID الخاص بالجهاز (ابحث عنه في نتائج هذه الخطوة)
-      - name: Get AnyDesk ID
-        run: |
-          Start-Sleep -Seconds 10
-          & "C:\AnyDesk\AnyDesk.exe" --get-id
-        shell: powershell
-
-      # 6. الحفاظ على الجلسة نشطة لمدة 6 ساعات
-      - name: Keep Alive Loop
-        run: |
-          Write-Host "السيرفر جاهز! استخدم المستخدم: safaa والرمز: safaa@1"
-          for ($i = 1; $i -le 360; $i++) {
-              Write-Host "Session is active... Minute: $i"
-              Start-Sleep -Seconds 60
+          $endTime = (Get-Date).AddHours(6)
+          Write-Host "========================================"
+          Write-Host "ANYDESK READY"
+          Write-Host "ID: $env:ANYDESK_ID"
+          Write-Host "User: runneradmin"
+          Write-Host "Password: safaa@1"
+          Write-Host "========================================"
+          
+          
+          while ((Get-Date) -lt $endTime) {
+              Write-Host "Online | ID: $env:ANYDESK_ID | $(Get-Date)"
+              Start-Sleep -Seconds 300
           }
-        shell: powershell
