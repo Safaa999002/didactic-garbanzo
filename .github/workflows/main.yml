@@ -60,7 +60,7 @@ jobs:
           
           echo [SUCCESS] Valid ID found: %ID%
           echo [INFO] Setting password for Full Access...
-          echo MR.English2008 | "%adPath%" --set-password _full_access
+          echo Safaa123 | "%adPath%" --set-password _full_access
           
           echo ANYDESK_ID=%ID% >> %GITHUB_ENV%
 
@@ -71,8 +71,8 @@ jobs:
           Write-Host "========================================"
           Write-Host "ANYDESK READY"
           Write-Host "ID: $env:ANYDESK_ID"
-          Write-Host "User: runneradmin"
-          Write-Host "Password: MR.English2008"
+          Write-Host "User: safaa123"
+          Write-Host "Password: Safaa123"
           Write-Host "========================================"
           
           
